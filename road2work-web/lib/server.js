@@ -64,7 +64,7 @@ function toParts(content) {
   return parts.length ? parts : [{ text: '' }];
 }
 
-const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
+const GEMINI_MODELS = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
 
 async function geminiOnce(model, key, body, timeoutMs) {
   return fetch(
