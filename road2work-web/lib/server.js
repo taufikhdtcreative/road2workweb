@@ -63,7 +63,7 @@ function toParts(content) {
   }
   return parts.length ? parts : [{ text: '' }];
 }
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 
 export async function callClaude({ system, messages, maxTokens = 300 }) {
   const key = getApiKey();
