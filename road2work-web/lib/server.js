@@ -80,35 +80,35 @@ export async function callClaude({ system, messages, maxTokens = 300 }) {
   const key = getApiKey();
   if (!key) return { ok: false, error: 'GEMINI_API_KEY belum diisi.' };
 
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': key,
-        },
-        body: JSON.stringify({
-                    system_instruction: { parts: toParts(system) },
-          contents: messages.map((m) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: toParts(m.content),
-          })),
-          generationConfig: {
-            maxOutputTokens: maxTokens,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
-      }
-    );
+  const body = {
+    system_instruction: { parts: toParts(system) },
+    contents: messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: toParts(m.content),
+    })),
+    generationConfig: { maxOutputTokens: maxTokens },
+  };
 
-    const data = await res.json().catch(() => ({}));
+  try {
+    let res = null;
+    let data = {};
+
+    for (const model of GEMINI_MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        res = await geminiOnce(model, key, body);
+        data = await res.json().catch(() => ({}));
+        if (res.ok) break;
+        if (res.status !== 503 && res.status !== 429) break;
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+      if (res.ok) break;
+      if (![404, 429, 503].includes(res.status)) break;
+    }
 
     if (!res.ok) {
       console.error('Gemini error:', res.status, data);
-      if (res.status === 429) {
-        return { ok: false, error: 'Kuota AI gratis sedang penuh. Coba lagi sebentar.' };
+      if (res.status === 429 || res.status === 503) {
+        return { ok: false, error: 'AI sedang ramai. Coba lagi dalam beberapa menit.' };
       }
       return { ok: false, error: data?.error?.message || 'AI sedang bermasalah.' };
     }
