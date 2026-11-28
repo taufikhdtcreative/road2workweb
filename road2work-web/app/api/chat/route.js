@@ -47,7 +47,7 @@ Arti: konteks = seberapa jelas kandidat menjelaskan situasi/pengalaman; kontribu
 export async function POST(request) {
   if (keyMissing(getApiKey())) {
     return Response.json(
-      { error: 'ANTHROPIC_API_KEY belum diisi. Salin .env.example menjadi .env.local lalu isi API key-nya.' },
+      { error: 'GEMINI_API_KEY belum diisi. Tambahkan di .env.local (lokal) atau Environment Variables Vercel.' },
       { status: 500 }
     );
   }
@@ -74,7 +74,7 @@ export async function POST(request) {
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
     .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }))
     .slice(-24);
-  // Pemotongan bisa menyisakan pesan AI di urutan pertama; API mewajibkan giliran pertama dari user.
+  // Pemotongan bisa menyisakan pesan AI di urutan pertama; giliran pertama harus dari user.
   while (messages.length && messages[0].role !== 'user') messages.shift();
 
   if (!messages.length) {
