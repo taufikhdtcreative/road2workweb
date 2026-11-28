@@ -63,7 +63,18 @@ function toParts(content) {
   }
   return parts.length ? parts : [{ text: '' }];
 }
-const GEMINI_MODEL = 'gemini-3.8-flash';
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
+
+async function geminiOnce(model, key, body) {
+  return fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify(body),
+    }
+  );
+}
 
 export async function callClaude({ system, messages, maxTokens = 300 }) {
   const key = getApiKey();
