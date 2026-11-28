@@ -65,7 +65,9 @@ ul {
   padding: 0;
 }
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
   color: inherit;
 }
