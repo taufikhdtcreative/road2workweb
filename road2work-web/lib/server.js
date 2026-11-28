@@ -63,6 +63,7 @@ function toParts(content) {
   }
   return parts.length ? parts : [{ text: '' }];
 }
+
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
 
 async function geminiOnce(model, key, body, timeoutMs) {
@@ -90,7 +91,7 @@ export async function callClaude({ system, messages, maxTokens = 300 }) {
     generationConfig: { maxOutputTokens: maxTokens },
   };
 
-  const deadline = Date.now() + 50000; // sisakan margin sebelum batas 60 detik Vercel
+  const deadline = Date.now() + 50000;
   let res = null;
   let data = {};
 
@@ -128,56 +129,6 @@ export async function callClaude({ system, messages, maxTokens = 300 }) {
 
   if (!text) return { ok: false, error: 'AI tidak memberi jawaban. Coba lagi.' };
   return { ok: true, text };
-}
-
-export async function callClaude({ system, messages, maxTokens = 300 }) {
-  const key = getApiKey();
-  if (!key) return { ok: false, error: 'GEMINI_API_KEY belum diisi.' };
-
-  const body = {
-    system_instruction: { parts: toParts(system) },
-    contents: messages.map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: toParts(m.content),
-    })),
-    generationConfig: { maxOutputTokens: maxTokens },
-  };
-
-  try {
-    let res = null;
-    let data = {};
-
-    for (const model of GEMINI_MODELS) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        res = await geminiOnce(model, key, body);
-        data = await res.json().catch(() => ({}));
-        if (res.ok) break;
-        if (res.status !== 503 && res.status !== 429) break;
-        await new Promise((r) => setTimeout(r, 1200));
-      }
-      if (res.ok) break;
-      if (![404, 429, 503].includes(res.status)) break;
-    }
-
-    if (!res.ok) {
-      console.error('Gemini error:', res.status, data);
-      if (res.status === 429 || res.status === 503) {
-        return { ok: false, error: 'AI sedang ramai. Coba lagi dalam beberapa menit.' };
-      }
-      return { ok: false, error: data?.error?.message || 'AI sedang bermasalah.' };
-    }
-
-    const text = (data.candidates?.[0]?.content?.parts || [])
-      .map((p) => p.text || '')
-      .join('')
-      .trim();
-
-    if (!text) return { ok: false, error: 'AI tidak memberi jawaban. Coba lagi.' };
-    return { ok: true, text };
-  } catch (e) {
-    console.error('Gemini fetch gagal:', e);
-    return { ok: false, error: 'Tidak bisa terhubung ke AI.' };
-  }
 }
 
 export function extractJson(text) {
