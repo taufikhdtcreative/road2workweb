@@ -45,7 +45,24 @@ export async function authenticate(request) {
     return { ok: false };
   }
 }
+function toParts(content) {
+  if (typeof content === 'string') return [{ text: content }];
+  if (!Array.isArray(content)) return [{ text: String(content ?? '') }];
 
+  const parts = [];
+  for (const b of content) {
+    if (typeof b === 'string') {
+      parts.push({ text: b });
+    } else if (b?.type === 'text') {
+      parts.push({ text: String(b.text ?? '') });
+    } else if ((b?.type === 'document' || b?.type === 'image') && b.source?.type === 'base64') {
+      parts.push({
+        inline_data: { mime_type: b.source.media_type, data: b.source.data },
+      });
+    }
+  }
+  return parts.length ? parts : [{ text: '' }];
+}
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
 export async function callClaude({ system, messages, maxTokens = 300 }) {
@@ -62,10 +79,10 @@ export async function callClaude({ system, messages, maxTokens = 300 }) {
           'x-goog-api-key': key,
         },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: system }] },
+                    system_instruction: { parts: toParts(system) },
           contents: messages.map((m) => ({
             role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }],
+            parts: toParts(m.content),
           })),
           generationConfig: {
             maxOutputTokens: maxTokens,
