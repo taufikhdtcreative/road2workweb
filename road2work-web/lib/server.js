@@ -65,15 +65,69 @@ function toParts(content) {
 }
 const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3.8-flash-lite', 'gemini-2.5-flash-lite'];
 
-async function geminiOnce(model, key, body) {
+async function geminiOnce(model, key, body, timeoutMs) {
   return fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
     }
   );
+}
+
+export async function callClaude({ system, messages, maxTokens = 300 }) {
+  const key = getApiKey();
+  if (!key) return { ok: false, error: 'GEMINI_API_KEY belum diisi.' };
+
+  const body = {
+    system_instruction: { parts: toParts(system) },
+    contents: messages.map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: toParts(m.content),
+    })),
+    generationConfig: { maxOutputTokens: maxTokens },
+  };
+
+  const deadline = Date.now() + 50000; // sisakan margin sebelum batas 60 detik Vercel
+  let res = null;
+  let data = {};
+
+  for (const model of GEMINI_MODELS) {
+    const remaining = deadline - Date.now();
+    if (remaining < 4000) break;
+
+    try {
+      res = await geminiOnce(model, key, body, Math.min(20000, remaining));
+      data = await res.json().catch(() => ({}));
+    } catch (e) {
+      console.error('Gemini timeout/gagal pada', model, e?.name);
+      res = { ok: false, status: 504 };
+      continue;
+    }
+
+    if (res.ok) break;
+    console.error('Gemini error:', model, res.status, data);
+    if (![404, 429, 503].includes(res.status)) break;
+  }
+
+  if (!res) return { ok: false, error: 'Tidak bisa terhubung ke AI.' };
+
+  if (!res.ok) {
+    if ([429, 503, 504].includes(res.status)) {
+      return { ok: false, error: 'AI sedang ramai atau lambat. Coba lagi dalam beberapa menit.' };
+    }
+    return { ok: false, error: data?.error?.message || 'AI sedang bermasalah.' };
+  }
+
+  const text = (data.candidates?.[0]?.content?.parts || [])
+    .map((p) => p.text || '')
+    .join('')
+    .trim();
+
+  if (!text) return { ok: false, error: 'AI tidak memberi jawaban. Coba lagi.' };
+  return { ok: true, text };
 }
 
 export async function callClaude({ system, messages, maxTokens = 300 }) {
