@@ -18,7 +18,7 @@ export function clientIp(request) {
 }
 
 export function getApiKey() {
-  return (process.env.ANTHROPIC_API_KEY || '').trim().replace(/^["']|["']$/g, '');
+  return (process.env.GEMINI_API_KEY || '').trim().replace(/^["']|["']$/g, '');
 }
 
 export function keyMissing(key) {
@@ -46,7 +46,57 @@ export async function authenticate(request) {
   }
 }
 
-export async function callClaude({ system, messages, maxTokens }) {
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+export async function callClaude({ system, messages, maxTokens = 300 }) {
+  const key = getApiKey();
+  if (!key) return { ok: false, error: 'GEMINI_API_KEY belum diisi.' };
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': key,
+        },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: system }] },
+          contents: messages.map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+          })),
+          generationConfig: {
+            maxOutputTokens: maxTokens,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      }
+    );
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      console.error('Gemini error:', res.status, data);
+      if (res.status === 429) {
+        return { ok: false, error: 'Kuota AI gratis sedang penuh. Coba lagi sebentar.' };
+      }
+      return { ok: false, error: data?.error?.message || 'AI sedang bermasalah.' };
+    }
+
+    const text = (data.candidates?.[0]?.content?.parts || [])
+      .map((p) => p.text || '')
+      .join('')
+      .trim();
+
+    if (!text) return { ok: false, error: 'AI tidak memberi jawaban. Coba lagi.' };
+    return { ok: true, text };
+  } catch (e) {
+    console.error('Gemini fetch gagal:', e);
+    return { ok: false, error: 'Tidak bisa terhubung ke AI.' };
+  }
+}}) {
   try {
     const base = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '');
     const res = await fetch(`${base}/v1/messages`, {
