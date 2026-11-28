@@ -35,7 +35,7 @@ export async function authenticate(request) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return { ok: false };
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/auth/v1/user`, {
+    const res = await fetchWithRetry(`${url.replace(/\/$/, '')}/auth/v1/user`, {
       headers: { apikey: anon, Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return { ok: false };
