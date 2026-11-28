@@ -96,43 +96,6 @@ export async function callClaude({ system, messages, maxTokens = 300 }) {
     console.error('Gemini fetch gagal:', e);
     return { ok: false, error: 'Tidak bisa terhubung ke AI.' };
   }
-}}) {
-  try {
-    const base = (process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/$/, '');
-    const res = await fetch(`${base}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': getApiKey(),
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
-        max_tokens: maxTokens,
-        system,
-        messages,
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const error =
-        res.status === 401
-          ? 'API key Anthropic tidak valid.'
-          : res.status === 429
-          ? 'Kuota atau batas permintaan API tercapai. Coba lagi sebentar.'
-          : data?.error?.message || `Layanan AI error (${res.status}).`;
-      return { ok: false, error };
-    }
-    const text = (data.content || [])
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('\n')
-      .trim();
-    if (!text) return { ok: false, error: 'AI tidak memberi jawaban. Coba lagi.' };
-    return { ok: true, text };
-  } catch {
-    return { ok: false, error: 'Tidak bisa menghubungi layanan AI. Cek koneksi internet server.' };
-  }
 }
 
 export function extractJson(text) {
