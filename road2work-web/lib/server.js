@@ -88,7 +88,7 @@ export async function callClaude({ system, messages, maxTokens = 300 }) {
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: toParts(m.content),
     })),
-    generationConfig: { maxOutputTokens: maxTokens },
+    generationConfig: { maxOutputTokens: Math.max(maxTokens * 4, 1200) },
   };
 
   const deadline = Date.now() + 50000;
